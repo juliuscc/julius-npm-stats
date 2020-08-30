@@ -14,7 +14,10 @@
     "check-formatting": "prettier . --check --ignore-path .gitignore"
   },
   "dependencies": {
+    "@types/npm-user-packages": "^3.0.0",
+    "got": "^11.5.2",
     "next": "9.5.2",
+    "npm-user-packages": "^3.0.0",
     "react": "16.13.1",
     "react-dom": "16.13.1"
   },

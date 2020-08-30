@@ -1,8 +1,14 @@
 import type { AppProps } from 'next/app'
-import '../styles/globals.css'
+import '../src/app/globals.css'
+import Meta from '../src/app/Meta'
 
 function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />
+  return (
+    <>
+      <Meta />
+      <Component {...pageProps} />
+    </>
+  )
 }
 
 export default MyApp

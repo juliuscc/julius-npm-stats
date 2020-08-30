@@ -1,65 +1,83 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import { InferGetStaticPropsType } from 'next'
+import styles from '../src/home/Home.module.css'
+import { useEffect } from 'react'
+import npmUserPackages from 'npm-user-packages'
+import got from 'got'
 
-export default function Home() {
+const packageIsScoped = (name: string) => name.startsWith('@')
+
+type DownloadsDay = {
+  day: string
+  downloads: number
+}
+
+const calculateTotal = (downloads: DownloadsDay[]): number =>
+  downloads.reduce((acc, { downloads }) => acc + downloads, 0)
+
+const sortPackages = (
+  packageDownloads: {
+    name: string
+    downloads: DownloadsDay[]
+    totalDownloads: number
+  }[],
+) =>
+  packageDownloads.sort(({ totalDownloads: a }, { totalDownloads: b }) => b - a)
+
+export const getStaticProps = async (_context: unknown) => {
+  const packageMeta = await npmUserPackages('jcelik')
+  const packageNames = packageMeta.map(({ name }) => name)
+
+  const scopedPackages = packageNames.filter(packageIsScoped)
+  const unscopedPackages = packageNames.filter((name) => !packageIsScoped(name))
+
+  const apiUrlBase = 'https://api.npmjs.org/downloads/range/last-year'
+
+  const scopedDownloads: {
+    name: string
+    downloads: DownloadsDay[]
+  }[] = await Promise.all(
+    scopedPackages.map(async (name) => ({
+      name,
+      downloads: ((await got(`${apiUrlBase}/${name}`).json()) as any).downloads,
+    })),
+  )
+
+  const unscopedApiUrl = `${apiUrlBase}/${unscopedPackages.join(',')}`
+  const unscopedDownloads: {
+    name: string
+    downloads: DownloadsDay[]
+  }[] = Object.entries(
+    await got(unscopedApiUrl).json(),
+  ).map(([name, { downloads }]: [string, any]) => ({ name, downloads }))
+
+  const packageDownloads = sortPackages(
+    [...scopedDownloads, ...unscopedDownloads].map((packageInfo) => ({
+      ...packageInfo,
+      totalDownloads: calculateTotal(packageInfo.downloads),
+    })),
+  )
+
+  return {
+    props: { packageDownloads },
+  }
+}
+
+const Home = ({
+  packageDownloads,
+}: InferGetStaticPropsType<typeof getStaticProps>) => {
+  console.log(packageDownloads)
+
   return (
     <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
+      <h1>Julius NPM Stats</h1>
+      <h2>Packages:</h2>
+      {packageDownloads.map(({ name, downloads, totalDownloads }) => (
+        <h3 key={name}>
+          {name}: {totalDownloads}
+        </h3>
+      ))}
     </div>
   )
 }
+
+export default Home
