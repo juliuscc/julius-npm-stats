@@ -29,6 +29,7 @@ export const getStaticProps = async (_context: unknown) => {
 
   return {
     props: { packageDownloads },
+    revalidate: 10,
   }
 }
 
